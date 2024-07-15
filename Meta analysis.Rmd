@@ -1,0 +1,136 @@
+---
+title: "Meta analysis"
+author: "Simon"
+date: "2024-07-15"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Meta analysis
+
+```{r echo=TRUE}
+#tinytex::reinstall_tinytex(repository = "illinois")
+#install.packages("remotes")
+#remotes::install_version("meta", version = "4.9-9")
+#remotes::install_version("metasens", version = "0.4-0")
+
+```
+
+##Data Importation
+
+```{r pressure, echo=FALSE}
+library(meta)
+library(metasens)
+library(readr)
+joy <- read_csv("C:/Users/user/Downloads/ebmental-2019-November-22-4-153-inline-supplementary-material-1.txt")
+#View(joy)
+
+# Adding a new column 'miss' to the 'joy' data frame
+joy$miss <- ifelse((joy$drop.h + joy$drop.p) == 0, "Without missing data", "With missing data")
+
+# Print the new 'miss' column to check the result
+joy$miss
+
+```
+Some studies have participants with missing information due to drop outs (variables drop.h and drop.p). Later, we want to conduct a subgroup analysis of studies with and without missing data and therefore add a new variable with this information to the dataset as done above
+
+##Fixed effect and random effects meta-analysis
+The outcome of interest, that is, clinical improvement, is binary and the brief overview provided by help(meta) reveals that the appropriate R function is metabin.
+
+# Corrected meta-analysis function 
+
+```{r echo=TRUE}
+mpubl <- metabin(resp.h, resp.h + fail.h, resp.p, resp.p + fail.p, 
+                 data = joy, 
+                 studlab = paste(author, "(", year, ")", sep = ""), 
+                 method.tau = "PM")
+
+# Print the meta-analysis result
+print(mpubl)
+
+# Create a forest plot
+forest(mpubl)
+
+```
+
+This command creates a new R object, named m.publ, which is a list containing several components describing the meta-analysis that can be accessed with minimum input by the user. By default, the RR is used in metabin as the effect measure, and it is not necessary to specify this explicitly (which could be done setting the argument sm = “ RR ”).
+
+The first four arguments of metabin are mandatory and define the variables containing the number of patients who experienced a clinical improvement and the number of randomised patients (for which we have the information), for the experimental arm and the control arm, respectively. The function performs both fixed effect and random effects meta-analysis, using the dataset joy (argument data). The argument studlab defines study labels that are printed in the output and shown in the forest plot, here as the name of the first author and the publication year. The default method to calculate the fixed effect estimate is Mantel-Haenszel. The inverse variance weighting could be used for pooling by specifying method = “ Inverse ”, which was used in Chaimani et al. The method to estimate the between-study variance in the random effects model can be specified with the argument method.tau; in this example we chose the method by Paule and Mandel, which is a recommended method for binary outcomes.
+
+##Result discussions
+Some CIs in the forest plot do not overlap, and the test of heterogeneity (p=0.004) also suggests the presence of heterogeneous results. The heterogeneity statistic I2 is 54%, indicative of moderate heterogeneity; its CI ranges from 21% to 74%, denoting potentially unimportant to substantial heterogeneity (ref 13, section 9.5.2).13 As expected, the CI for the summary estimate from the random effects model is wider compared with the one from the fixed effect model, but the two results differ only slightly in terms of magnitude.
+
+##Assessing the impact of missing outcome data
+In order to understand if the results of studies with missing data differed from studies without missing data, a subgroup analysis can be done through the command
+
+```{r echo=TRUE}
+mpubl_sub = update(mpubl,byvar=miss, print.byvar = FALSE)
+mpubl_sub
+```
+##Meta-Analysis Results Summary
+Overall Meta-Analysis:
+
+Common Effect Model:
+Risk Ratio (RR): 2.0910
+95% Confidence Interval (CI): [1.6859, 2.5935]
+p-value: < 0.0001
+Random Effects Model:
+Risk Ratio (RR): 2.1465
+95% Confidence Interval (CI): [1.5066, 3.0583]
+p-value: < 0.0001
+Heterogeneity:
+
+tau^2 (estimate of between-study variance): 0.1754
+tau (standard deviation of the random effects): 0.4188
+I^2 (percentage of variation across studies due to heterogeneity): 41.3%
+H (measure of heterogeneity): 1.30
+Q statistic (test for heterogeneity): Q = 27.24, degrees of freedom (d.f.) = 16, p-value = 0.0388
+Subgroup Analysis:
+
+With Missing Data:
+Number of studies (k): 10
+Common Effect Model RR: 1.7020 [1.3516, 2.1432]
+Random Effects Model RR: 1.7115 [1.1290, 2.5944]
+tau^2: 0.1785
+tau: 0.4224
+Q statistic for subgroup: Q = 13.73, I^2 = 34.4%
+Without Missing Data:
+Number of studies (k): 7
+Common Effect Model RR: 4.3628 [2.4501, 7.7689]
+Random Effects Model RR: 3.8035 [2.1274, 6.8001]
+tau^2: 0
+tau: 0
+Q statistic for subgroup: Q = 3.35, I^2 = 0%
+Test for Subgroup Differences:
+
+Common Effect Model:
+Q statistic: Q = 8.82, d.f. = 1, p-value = 0.0030
+Random Effects Model:
+Q statistic: Q = 4.80, d.f. = 1, p-value = 0.0285
+Interpretation of Results
+Overall Effect:
+
+Both the common effect and random effects models suggest a significant association with RR greater than 2, indicating that the event rate is more than twice as high in one group compared to the other.
+Heterogeneity:
+
+There is moderate heterogeneity (I^2 = 41.3%), suggesting that there are some differences between the studies that cannot be attributed to chance alone.
+Subgroup Analysis:
+
+There are significant differences in the effect sizes between studies with and without missing data.
+For studies with missing data, the RR is lower (~1.7) compared to studies without missing data (~4.3 in the common effect model, ~3.8 in the random effects model).
+Subgroup Differences:
+
+The tests for subgroup differences are significant in both models, indicating that the presence of missing data impacts the effect size.
+
+## General Discussion
+Meta-analysis is a fundamental tool for evidence-based medicine, making it essential to well understand its methodology and interpret its results. Nowadays several software options are available to perform a meta-analysis. In this paper, we aimed to give a brief introduction on how to conduct a meta-analysis in the freely available software R using the meta and metasens packages, which provide a user-friendly implementation of meta-analysis methods. The meta package has been developed by the last author to communicate meta-analysis results to clinical colleagues in the context of Cochrane reviews.
+
+For illustration, we used an example with a binary outcome and showed how to conduct a meta-analysis and subgroup analysis, produce a forest and funnel plot and to test and adjust for funnel plot asymmetry. All these steps work similar for other outcome types, for example, R function metacont can be used for continuous outcomes. Additionally, we conducted a sensitivity analysis for missing binary outcomes using R function metamiss.
+
+In our example, all sensitivity analyses for missing data resulted in similar results supporting the benefit of haloperidol over placebo despite very different assumptions on the missingness mechanism. However, the evaluation of funnel plot asymmetry revealed a small-study effect that—according to the contour-enhanced funnel plot—cannot be attributed to publication bias. While all sensitivity analyses adjusting for selection bias resulted in non-significant treatment estimates, we would not like to interpret these results too much as clinical heterogeneity could be another explanation for the small-study effect.22 A deeper knowledge of the condition under study, of the treatment and the settings in which it was administered in different trials could help to identify the probable reason for asymmetry in the funnel plot.
+
